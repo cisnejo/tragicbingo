@@ -1,35 +1,44 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+/* eslint-disable */
+import * as THREE from "three";
+import * as React from "react";
+import { useRef, useState } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 
-function App() {
-  const [count, setCount] = useState(0)
+function Box(props: JSX.IntrinsicElements["mesh"]) {
+  // This reference will give us direct access to the THREE.Mesh object
+  const ref = useRef<THREE.Mesh>(null!);
+  // Hold state for hovered and clicked events
+  const [hovered, hover] = useState(false);
+  const [clicked, click] = useState(false);
+  // Rotate mesh every frame, this is outside of React without overhead
+  //useFrame((state, delta) => (ref.current.rotation.x += 0.01));
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <mesh
+      {...props}
+      ref={ref}
+      onClick={(event) => click(!clicked)}
+      onPointerOver={(event) => hover(true)}
+      onPointerOut={(event) => hover(false)}
+    >
+      <boxGeometry args={[0.2, 4, 0.1]} />
+      //<meshStandardMaterial color={hovered ? "hotpink" : "orange"} />
+    </mesh>
+  );
 }
 
-export default App
+export default function App() {
+  return (
+    <Canvas>
+      <ambientLight />
+      <spotLight position={[5, 10, 10]} angle={0.15} penumbra={1} />
+      <pointLight position={[-10, -10, -10]} />
+      <Box position={[-2, 0, 0]} />
+      <Box position={[-1, 0, 0]} />
+      <Box position={[0, 0, 0]} />
+      <Box position={[1, 0, 0]} />
+      <Box position={[2, 0, 0]} />
+      
+    </Canvas>
+  );
+}
