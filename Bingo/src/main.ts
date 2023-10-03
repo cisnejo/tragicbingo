@@ -12,7 +12,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-
+const raycaster = new THREE.Raycaster();
 // camera ---------------------------
 const camera = new THREE.PerspectiveCamera(
   100,
@@ -23,22 +23,39 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(0, 0, 0);
 camera.lookAt(0, 0, 0);
 // CANNON stuff ------------------------------------------
-const axesHelper = new THREE.AxesHelper(8);
+
 const cannonDebugger = new (CannonDebugger as any)(scene, physicsWorld, {});
 
-const groundBody = new CANNON.Body({
-  type: CANNON.Body.STATIC,
-  shape: new CANNON.Plane(),
-});
+type SphereTypes = {
+  sphereMesh: THREE.Mesh<THREE.SphereGeometry>;
+  sphereBody: CANNON.Body;
+};
+class ElementList {
+  boxList: CANNON.Body[];
+  sphereList: SphereTypes[];
+  static sphereList: any;
+  constructor() {
+    this.boxList = [];
+    this.sphereList = [];
+  }
+}
+
+const elementList = new ElementList();
 
 let number = 5;
-let boxHeight = 0.01;
+let boxHeight = 0.15;
+
 for (let i = 1; i <= number; i++) {
   let row = i - Math.ceil(number / 2);
   for (let j = 1; j <= number; j++) {
     let col = j - Math.ceil(number / 2);
-    CreatePhysicsBox(0.5, 0.5, boxHeight, row, col, 0);
+    CreatePhysicsBox(0.5, 0.5, 0.01, row, col, -0.01);
   }
+}
+for (let i = 0; i <= number; i++) {
+  let row = i - Math.ceil(number / 2);
+  CreatePhysicsBox(0.5 * number, 0.01, boxHeight, 0, row + 0.5, 0);
+  CreatePhysicsBox(0.01, 0.5 * number, boxHeight, row + 0.5, 0, 0);
 }
 
 let balls = 5;
@@ -46,14 +63,11 @@ for (let i = 1; i <= balls; i++) {
   const negativeOrNot = Math.random() * 2 > 1 ? 1 : -1;
   const x = Math.random() / 5;
   const y = Math.random() / 5;
-  console.log(x);
-  console.log(negativeOrNot);
   addSphereBody(i * x * negativeOrNot, i * y * negativeOrNot, i);
 }
 
 // rules --------------------
 camera.position.z = 6;
-groundBody.quaternion.setFromEuler(0, 0, 0);
 
 //physicsWorld.addBody(groundBody);
 
@@ -63,13 +77,17 @@ animate();
 // functions ---------------------------------------
 
 function animate() {
-  requestAnimationFrame(animate);
-  renderer.render(scene, camera);
-  cannonDebugger.update();
   physicsWorld.fixedStep();
+  //cannonDebugger.update();
+  elementList.sphereList.forEach((sphere: SphereTypes) => {
+    sphere.sphereMesh.position.copy(sphere.sphereBody.position);
+    sphere.sphereMesh.quaternion.copy(sphere.sphereBody.quaternion);
+  });
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
 }
 
-console.log(physicsWorld);
 function CreatePhysicsBox(
   w: number,
   h: number,
@@ -86,13 +104,57 @@ function CreatePhysicsBox(
 
   boxBody.position.set(x, y, z);
   physicsWorld.addBody(boxBody);
+  elementList.boxList.push(boxBody);
 }
 
 function addSphereBody(x: number, y: number, z: number) {
+  const geometry = new THREE.SphereGeometry(0.2);
+  const material = new THREE.MeshNormalMaterial();
+  const sphereMesh = new THREE.Mesh(geometry, material);
+
   const sphereBody = new CANNON.Body({
-    mass: 0.1,
+    mass: 3,
     shape: new CANNON.Sphere(0.2),
   });
+
+  scene.add(sphereMesh);
   sphereBody.position.set(x, y, z);
   physicsWorld.addBody(sphereBody);
+  elementList.sphereList.push({ sphereBody, sphereMesh });
 }
+
+function CheckSphereInSquare(sphere: CANNON.Body) {}
+
+elementList.sphereList.forEach((sphere: SphereTypes) => {});
+
+let mouse = new THREE.Vector2();
+
+function onClick(e: any) {
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(scene.children, true);
+  if (intersects.length > 0) {
+    const obj = intersects[0];
+
+    const { object, face } = obj;
+    console.log(object.uuid);
+    if (object.geometry.type === "SphereGeometry") {
+      const elemntobject = elementList.sphereList.find(
+        (sphere: SphereTypes) => {
+          return sphere.sphereMesh.uuid === object.uuid;
+        }
+      );
+
+      const mousemove = window.addEventListener("mousemove", movesphere);
+      function movesphere() {}
+    }
+
+    // Get the impulse based on the face normal
+  }
+}
+
+document.addEventListener("mousedown", (e) => onClick(e));
+
+window.addEventListener("mousemove", (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
