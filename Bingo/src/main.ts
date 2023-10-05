@@ -63,7 +63,7 @@ for (let i = 1; i <= balls; i++) {
   const negativeOrNot = Math.random() * 2 > 1 ? 1 : -1;
   const x = Math.random() / 5;
   const y = Math.random() / 5;
-  addSphereBody(i * x * negativeOrNot, i * y * negativeOrNot, i);
+  addSphereBody(i * x * negativeOrNot, i * y * negativeOrNot, 1);
 }
 
 // rules --------------------
@@ -72,21 +72,6 @@ camera.position.z = 6;
 //physicsWorld.addBody(groundBody);
 
 //scene.add(axesHelper);
-animate();
-
-// functions ---------------------------------------
-
-function animate() {
-  physicsWorld.fixedStep();
-  //cannonDebugger.update();
-  elementList.sphereList.forEach((sphere: SphereTypes) => {
-    sphere.sphereMesh.position.copy(sphere.sphereBody.position);
-    sphere.sphereMesh.quaternion.copy(sphere.sphereBody.quaternion);
-  });
-
-  renderer.render(scene, camera);
-  requestAnimationFrame(animate);
-}
 
 function CreatePhysicsBox(
   w: number,
@@ -125,7 +110,9 @@ function addSphereBody(x: number, y: number, z: number) {
 
 function CheckSphereInSquare(sphere: CANNON.Body) {}
 
-elementList.sphereList.forEach((sphere: SphereTypes) => {});
+elementList.sphereList.forEach((sphere: SphereTypes) => {
+  sphere.sphereBody.velocity;
+});
 
 let mouse = new THREE.Vector2();
 
@@ -136,16 +123,35 @@ function onClick(e: any) {
     const obj = intersects[0];
 
     const { object, face } = obj;
-    console.log(object.uuid);
     if (object.geometry.type === "SphereGeometry") {
       const elemntobject = elementList.sphereList.find(
         (sphere: SphereTypes) => {
           return sphere.sphereMesh.uuid === object.uuid;
         }
-      );
+      )!;
+      if (elemntobject === undefined) {
+        console.log(elementList.sphereList, object.uuid);
+      }
+      else{
+        console.log(elemntobject.sphereMesh.uuid)
+      }
+      const currentSphere = elemntobject.sphereMesh;
+      holdState.isDown = true;
+      holdState.currentObject = elemntobject.sphereBody;
+      window.addEventListener("mousemove", movesphere);
+      window.addEventListener("mouseup", removeListeners);
 
-      const mousemove = window.addEventListener("mousemove", movesphere);
-      function movesphere() {}
+      function removeListeners() {
+        holdState.currentObject.mass = 3;
+        holdState.currentObject = "";
+        holdState.isDown = false;
+        window.removeEventListener("mousemove", movesphere);
+        window.removeEventListener("mouseup", removeListeners);
+      }
+
+      function movesphere() {
+        elemntobject?.sphereBody.position.set(mouse.x * 6.5, mouse.y * 4.75, 2);
+      }
     }
 
     // Get the impulse based on the face normal
@@ -158,3 +164,31 @@ window.addEventListener("mousemove", (e) => {
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 });
+
+class HoldState {
+  currentObject: any;
+  isDown: boolean | undefined;
+  constructor() {
+    this.currentObject = "";
+    this.isDown = false;
+  }
+}
+const holdState = new HoldState();
+
+animate();
+
+// functions ---------------------------------------
+
+function animate() {
+  physicsWorld.fixedStep();
+ // cannonDebugger.update();
+  elementList.sphereList.forEach((sphere: SphereTypes) => {
+    sphere.sphereMesh.position.copy(sphere.sphereBody.position);
+    sphere.sphereMesh.quaternion.copy(sphere.sphereBody.quaternion);
+  });
+  if (holdState.isDown && holdState.currentObject) {
+    holdState.currentObject.mass = 0;
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
